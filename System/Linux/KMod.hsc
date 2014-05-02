@@ -160,9 +160,9 @@ validateResources :: Context -> IO Resources
 validateResources ctx = toResources <$> withContext ctx validate_resources
 
 -- | Represent an index file.
-data Index = ModulesDep	 
-           | ModulesAlias	 
-           | ModulesSymbol	 
+data Index = ModulesDep
+           | ModulesAlias
+           | ModulesSymbol
            | ModulesBuiltin
              deriving (Eq, Show)
 
@@ -625,7 +625,7 @@ foreign import ccall unsafe "kmod_list_next" list_next :: Ptr List
 
 
 
-toList :: (Ptr List -> IO a)  -- ^ Function to get the entry value 
+toList :: (Ptr List -> IO a)  -- ^ Function to get the entry value
        -> (Ptr List -> IO ()) -- ^ Function to free the list
        -> Ptr List
        -> IO [a]
@@ -639,7 +639,7 @@ toList get fr p = do l <- list_last p
                          if r == nullPtr
                            then do fr p
                                    return [x]
-                           else do xs <- genList r 
+                           else do xs <- genList r
                                    return (x:xs)
 
 
@@ -941,9 +941,9 @@ toInfoList = toList
              module_info_free_list
 
 -- | Possible values of initialization state of a @'Module'@.
-data Initstate = Builtin	 
-               | Live	 
-               | Coming	 
+data Initstate = Builtin
+               | Live
+               | Coming
                | Going
                  deriving (Eq, Show)
 
