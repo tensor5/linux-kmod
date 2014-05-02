@@ -70,6 +70,8 @@ module System.Linux.KMod
    ) where
 
 import Control.Exception (Exception, bracket, throw)
+import Control.Monad ((>=>), unless)
+import Data.Functor ((<$>))
 import Data.Typeable
 import Foreign hiding (new)
 import Foreign.C
@@ -94,7 +96,7 @@ foreign import ccall "&kmod_unref"
   p_unref :: FunPtr (Ptr Context -> IO (Ptr Context))
 
 toContext :: Ptr Context -> IO Context
-toContext ptr = newForeignPtr (castFunPtr p_unref) ptr >>= return . Context
+toContext = fmap Context . newForeignPtr (castFunPtr p_unref)
 
 
 foreign import ccall "kmod_new" kmod_new :: CString
@@ -109,11 +111,11 @@ new :: Maybe FilePath   -- ^ Linux module's directory, or @'Nothing'@
                         -- default (@\/run\/modprobe.d@,
                         -- @\/etc\/modprobe.d@ and @\/lib\/modprobe.d@)
     -> IO Context
-new mdir mpaths = (throwIfNull "kmod_new returned NULL" $
-                   maybeWith withCString mdir $ \d ->
+new mdir mpaths = throwIfNull "kmod_new returned NULL"
+                  (maybeWith withCString mdir $ \d ->
                        maybeWith withCStringArray mpaths $ \p ->
-                           kmod_new d p
-                  ) >>= toContext
+                           kmod_new d p)
+                  >>= toContext
 
 withCStringArray :: [String] -> (Ptr CString -> IO a) -> IO a
 withCStringArray xs f = bracket
@@ -155,8 +157,7 @@ foreign import ccall "kmod_validate_resources"
 -- | Check if indexes and configuration files changed on disk and the
 -- current context is not valid anymore.
 validateResources :: Context -> IO Resources
-validateResources ctx = withContext ctx validate_resources >>=
-                        return . toResources
+validateResources ctx = toResources <$> withContext ctx validate_resources
 
 -- | Represent an index file.
 data Index = ModulesDep	 
@@ -197,7 +198,7 @@ foreign import ccall "kmod_get_log_priority"
 -- | Get the current logging priority.
 getLogPriority :: Context -> IO Int
 getLogPriority ctx =
-    withContext ctx (\p -> get_log_priority p >>= return . fromIntegral)
+    withContext ctx (fmap fromIntegral . get_log_priority)
 
 data ConfigIter
 
@@ -217,7 +218,7 @@ foreign import ccall unsafe "kmod_config_iter_free_iter"
 configIter2List :: (Ptr ConfigIter -> IO a)
                 -> Ptr ConfigIter
                 -> IO [a]
-configIter2List fget p = do
+configIter2List fget p =
   if p == nullPtr
     then throwErrno "configIter2List"
     else do b <- config_iter_next p
@@ -236,9 +237,7 @@ configIter2KeyValueList =
                                return (key,val)
 
 configIter2StringList :: Ptr ConfigIter -> IO [String]
-configIter2StringList = configIter2List 
-                        (\p -> do str <- config_iter_get_key p >>= peekCString
-                                  return str)
+configIter2StringList = configIter2List (config_iter_get_key >=> peekCString)
 
 withContextAndWith :: (Ptr Context -> IO a) -> (a -> IO b) -> Context -> IO b
 withContextAndWith f g m = withContext m f >>= g
@@ -411,14 +410,14 @@ data ProbeFlags = ProbeFlags { probeForceVerMagic :: Bool
                              } deriving (Eq, Show)
 
 fromProbeFlags :: (Bits a, Num a) => ProbeFlags -> a
-fromProbeFlags x =
+fromProbeFlags =
     fromBitField [ (probeForceVerMagic, #{const KMOD_PROBE_FORCE_VERMAGIC})
                  , (probeForceModVersion, #{const KMOD_PROBE_FORCE_MODVERSION})
                  , (probeIgnoreCommand, #{const KMOD_PROBE_IGNORE_COMMAND})
                  , (probeIgnoreLoaded, #{const KMOD_PROBE_IGNORE_LOADED})
                  , (probeDryRun, #{const KMOD_PROBE_DRY_RUN})
                  , (probeFailOnLoaded, #{const KMOD_PROBE_FAIL_ON_LOADED})
-                 ] x
+                 ]
 
 -- | @'Blacklist'@ filter for @'moduleProbeInsertModule'@ specifies
 -- how blacklist configuration should be applied.
@@ -446,7 +445,7 @@ foreign import ccall "kmod_module_probe_insert_module"
                              -> CString
                              -> FunPtr CRunInstall
                              -> Ptr ()
-                             -> FunPtr (CPrintAction)
+                             -> FunPtr CPrintAction
                              -> IO CInt
 
 -- | Function to run a module install commands.
@@ -509,9 +508,8 @@ moduleProbeInsertModule m flags bl opts ri pa =
                     do e <- module_probe_insert_module p
                             (fromProbeFlags flags .|. fromBlacklist bl)
                             cs fptr1 nullPtr fptr2
-                       if e == 0
-                         then return ()
-                         else if e < 0
+                       unless (e == 0) $
+                              if e < 0
                                then throwErrno "kmod_module_probe_insert_module"
                                else throw BlacklistError
 
@@ -654,11 +652,10 @@ foreign import ccall unsafe "kmod_module_unref_list"
 
 toModuleList :: Ptr List -> IO [Module]
 toModuleList = toList
-               (\p -> module_get_module p >>= toModule)
-               (\p -> throwErrnoIf_ (/= 0)
-                      "kmod_module_unref_list returned non-zero exit status"
-                      (module_unref_list p)
-               )
+               (module_get_module >=> toModule)
+               (throwErrnoIf_ (/= 0)
+                "kmod_module_unref_list returned non-zero exit status"
+                . module_unref_list)
 
 foreign import ccall "kmod_module_apply_filter"
   module_apply_filter :: Ptr Context
@@ -693,7 +690,7 @@ foreign import ccall "kmod_module_get_dependencies"
 -- given @'Module'@.
 moduleGetDependencies :: Module -> IO [Module]
 moduleGetDependencies m =
-    withModule m (\p -> module_get_dependencies p >>= toModuleList)
+    withModule m (module_get_dependencies >=> toModuleList)
 
 foreign import ccall "kmod_module_get_softdeps"
   module_get_softdeps :: Ptr Module
@@ -739,8 +736,8 @@ type CRC = #{type uint64_t}
 -- | Name of a symbol.
 type Symbol = String
 
-module_dependency_symbol_get :: Ptr List -> IO (Symbol,Bind,CRC)
-module_dependency_symbol_get p =
+moduleDependencySymbolGet :: Ptr List -> IO (Symbol,Bind,CRC)
+moduleDependencySymbolGet p =
     do s <- module_dependency_symbol_get_symbol p >>= peekCString
        b <- module_dependency_symbol_get_bind p
        c <- module_dependency_symbol_get_crc p
@@ -760,7 +757,7 @@ foreign import ccall "kmod_module_dependency_symbols_free_list"
 
 toDependencySymbolList :: Ptr List -> IO [(Symbol,Bind,CRC)]
 toDependencySymbolList =  toList
-                          module_dependency_symbol_get
+                          moduleDependencySymbolGet
                           module_dependency_symbols_free_list
 
 foreign import ccall "kmod_module_get_dependency_symbols"
@@ -869,14 +866,14 @@ moduleGetSymbols :: Module -> IO [(Symbol,CRC)]
 moduleGetSymbols =
     moduleGet module_get_symbols toSymbolList "kmod_module_get_symbols"
 
-module_symbol_get :: Ptr List -> IO (Symbol,CRC)
-module_symbol_get p = do s <- module_symbol_get_symbol p >>= peekCString
-                         c <- module_symbol_get_crc p
-                         return (s,c)
+moduleSymbolGet :: Ptr List -> IO (Symbol,CRC)
+moduleSymbolGet p = do s <- module_symbol_get_symbol p >>= peekCString
+                       c <- module_symbol_get_crc p
+                       return (s,c)
 
 toSymbolList :: Ptr List -> IO [(Symbol,CRC)]
 toSymbolList = toList
-               module_symbol_get
+               moduleSymbolGet
                module_symbols_free_list
 
 foreign import ccall "kmod_module_version_get_crc"
@@ -897,14 +894,14 @@ moduleGetVersions :: Module -> IO [(Symbol,CRC)]
 moduleGetVersions =
     moduleGet module_get_versions toVersionList "kmod_module_get_versions"
 
-module_version_get :: Ptr List -> IO (Symbol,CRC)
-module_version_get p = do s <- module_version_get_symbol p >>= peekCString
-                          c <- module_version_get_crc p
-                          return (s,c)
+moduleVersionGet :: Ptr List -> IO (Symbol,CRC)
+moduleVersionGet p = do s <- module_version_get_symbol p >>= peekCString
+                        c <- module_version_get_crc p
+                        return (s,c)
 
 toVersionList :: Ptr List -> IO [(Symbol,CRC)]
 toVersionList = toList
-                module_version_get
+                moduleVersionGet
                 module_versions_free_list
 
 
@@ -929,10 +926,10 @@ moduleGetInfo :: Module -> IO [(Key,Value)]
 moduleGetInfo =
     moduleGet module_get_info toInfoList "kmod_module_get_info"
 
-module_info_get :: Ptr List -> IO (String, String)
-module_info_get p = do k <- module_info_get_key p >>= peekCString
-                       v <- module_info_get_value p >>= peekCString
-                       return (k,v)
+moduleInfoGet :: Ptr List -> IO (String, String)
+moduleInfoGet p = do k <- module_info_get_key p >>= peekCString
+                     v <- module_info_get_value p >>= peekCString
+                     return (k,v)
 
 foreign import ccall "kmod_module_info_free_list"
         module_info_free_list :: Ptr List
@@ -940,7 +937,7 @@ foreign import ccall "kmod_module_info_free_list"
 
 toInfoList :: Ptr List -> IO [(String, String)]
 toInfoList = toList
-             module_info_get
+             moduleInfoGet
              module_info_free_list
 
 -- | Possible values of initialization state of a @'Module'@.
@@ -977,17 +974,17 @@ foreign import ccall "kmod_module_get_initstate"
 -- Linux Kernel, by reading @\/sys@ filesystem.
 moduleGetInitstate :: Module -> IO Initstate
 moduleGetInitstate m =
-    withModule m $ \p ->
-        (throwIfNeg (\e -> "kmod_module_get_initstate returned " ++ show e) $
-         module_get_initstate p)
-        >>= return . toInitstate
+    withModule m
+           (fmap toInitstate
+            . throwIfNeg (\e -> "kmod_module_get_initstate returned " ++ show e)
+            . module_get_initstate)
 
 foreign import ccall "kmod_module_get_size"
   module_get_size :: Ptr Module -> IO CInt
 
 -- | Get the size of the given @'Module'@ as returned by Linux kernel.
 moduleGetSize :: Module -> IO Int
-moduleGetSize m = withModule m module_get_size >>= return . fromIntegral
+moduleGetSize m = fromIntegral <$> withModule m module_get_size
 
 foreign import ccall "kmod_module_get_refcnt"
   module_get_refcnt :: Ptr Module -> IO CInt
@@ -995,7 +992,7 @@ foreign import ccall "kmod_module_get_refcnt"
 -- | Get the ref count of the given @'Module'@, as returned by Linux
 -- kernel, by reading @\/sys@ filesystem.
 moduleGetRefcnt :: Module -> IO Int
-moduleGetRefcnt m = withModule m module_get_refcnt >>= return . fromIntegral
+moduleGetRefcnt m = fromIntegral <$> withModule m module_get_refcnt
 
 foreign import ccall "kmod_module_get_holders"
   module_get_holders :: Ptr Module -> IO (Ptr List)
@@ -1003,4 +1000,4 @@ foreign import ccall "kmod_module_get_holders"
 -- | Get the list of @'Module'@s that are holding the given
 -- @'Module'@, as returned by Linux kernel.
 moduleGetHolders :: Module -> IO [Module]
-moduleGetHolders m = withModule m (\p -> module_get_holders p >>= toModuleList)
+moduleGetHolders m = withModule m (module_get_holders >=> toModuleList)
