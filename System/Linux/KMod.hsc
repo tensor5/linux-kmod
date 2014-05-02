@@ -2,8 +2,8 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
--- | High-level bindings to to the @libkmod@ library for manipulating
--- Linux kernel modules.
+-- | High-level bindings to to the @libkmod@ library for manipulating Linux
+-- kernel modules.
 module System.Linux.KMod
     (
     -- * Context
@@ -104,12 +104,12 @@ foreign import ccall "kmod_new" kmod_new :: CString
                                          -> IO (Ptr Context)
 
 -- | Create a @kmod@ @'Context'@ from configuration files.
-new :: Maybe FilePath   -- ^ Linux module's directory, or @'Nothing'@
-                        -- for the default (@\/lib\/modules\/`uname -r`@)
+new :: Maybe FilePath   -- ^ Linux module's directory, or @'Nothing'@ for the
+                        -- default (@\/lib\/modules\/`uname -r`@)
     -> Maybe [FilePath] -- ^ List of paths (directories or files) for
-                        -- configuration files, or @'Nothing'@ for the
-                        -- default (@\/run\/modprobe.d@,
-                        -- @\/etc\/modprobe.d@ and @\/lib\/modprobe.d@)
+                        -- configuration files, or @'Nothing'@ for the default
+                        -- (@\/run\/modprobe.d@, @\/etc\/modprobe.d@ and
+                        -- @\/lib\/modprobe.d@)
     -> IO Context
 new mdir mpaths = throwIfNull "kmod_new returned NULL"
                   (maybeWith withCString mdir $ \d ->
@@ -186,8 +186,8 @@ dumpIndex ctx i fd =
 foreign import ccall "kmod_set_log_priority"
   set_log_priority :: Ptr Context -> CInt -> IO ()
 
--- | Set the current logging priority. The value controls which
--- messages are logged.
+-- | Set the current logging priority. The value controls which messages are
+-- logged.
 setLogPriority :: Context -> Int -> IO ()
 setLogPriority ctx i =
     withContext ctx (\p -> set_log_priority p (fromIntegral i))
@@ -289,8 +289,8 @@ configGetSoftdeps =
     withContextAndWith config_get_softdeps configIter2KeyValueList
 
 
--- | Opaque object representing a module. The @'Show'@ instance of
--- @'Module'@ is achieved using @kmod_module_get_name@.
+-- | Opaque object representing a module. The @'Show'@ instance of @'Module'@ is
+-- achieved using @kmod_module_get_name@.
 data Module = Module (ForeignPtr Module) String
 
 withModule :: Module -> (Ptr Module -> IO a) -> IO a
@@ -322,13 +322,14 @@ fromLookup ctx str =
                 do poke r nullPtr
                    e <- module_new_from_lookup p q r
                    if e < 0
-                     then fail ("kmod_module_new_from_lookup returned " ++ show e)
+                     then fail ("kmod_module_new_from_lookup returned " ++
+                                show e)
                      else peek r
 
--- | Create a new list of @'Module'@s using an alias or module name
--- and lookup libkmod's configuration files and indexes in order to
--- find the module. Once it's found in one of the places, it stops
--- searching and create the list of @'Module'@s.
+-- | Create a new list of @'Module'@s using an alias or module name and lookup
+-- libkmod's configuration files and indexes in order to find the module. Once
+-- it's found in one of the places, it stops searching and create the list of
+-- @'Module'@s.
 moduleNewFromLookup :: Context -> String -> IO [Module]
 moduleNewFromLookup ctx str = fromLookup ctx str >>= toModuleList
 
@@ -356,9 +357,9 @@ moduleNewFrom fun err ctx str =
                      then peek r >>= toModule
                      else fail (err ++ " returned " ++ show e)
 
--- | Create a new @'Module'@ using the module name, that can not be an
--- alias, file name or anything else; it must be a module
--- name. There's no check if the module exists in the system.
+-- | Create a new @'Module'@ using the module name, that can not be an alias,
+-- file name or anything else; it must be a module name. There's no check if the
+-- module exists in the system.
 moduleNewFromName :: Context -> String -> IO Module
 moduleNewFromName =
     moduleNewFrom module_new_from_name "kmod_module_new_from_name"
@@ -419,24 +420,22 @@ fromProbeFlags =
                  , (probeFailOnLoaded, #{const KMOD_PROBE_FAIL_ON_LOADED})
                  ]
 
--- | @'Blacklist'@ filter for @'moduleProbeInsertModule'@ specifies
--- how blacklist configuration should be applied.
-data Blacklist = BlacklistAll       -- ^ Apply blacklist configuration
-                                    -- to the module and its
-                                    -- dependencies
-               | Blacklist          -- ^ Apply blacklist configuration
-                                    -- to the module alone
-               | BlacklistAliasOnly -- ^ Apply blacklist configuration
-                                    -- to the module only if it is an
-                                    -- alias
-               | NoBlacklist        -- ^ Do not apply blacklist
-                                    -- configuration
+-- | @'Blacklist'@ filter for @'moduleProbeInsertModule'@ specifies how
+-- blacklist configuration should be applied.
+data Blacklist = BlacklistAll       -- ^ Apply blacklist configuration to the
+                                    -- module and its dependencies
+               | Blacklist          -- ^ Apply blacklist configuration to the
+                                    -- module alone
+               | BlacklistAliasOnly -- ^ Apply blacklist configuration to the
+                                    -- module only if it is an alias
+               | NoBlacklist        -- ^ Do not apply blacklist configuration
                  deriving (Eq, Show)
 
 fromBlacklist :: Num a => Blacklist -> a
 fromBlacklist BlacklistAll = #{const KMOD_PROBE_APPLY_BLACKLIST_ALL}
 fromBlacklist Blacklist = #{const KMOD_PROBE_APPLY_BLACKLIST}
-fromBlacklist BlacklistAliasOnly = #{const KMOD_PROBE_APPLY_BLACKLIST_ALIAS_ONLY}
+fromBlacklist BlacklistAliasOnly =
+    #{const KMOD_PROBE_APPLY_BLACKLIST_ALIAS_ONLY}
 fromBlacklist NoBlacklist = 0
 
 foreign import ccall "kmod_module_probe_insert_module"
@@ -465,40 +464,37 @@ withRunInstall (Just ri) f = bracket
                              freeHaskellFunPtr
                              f
     where toCRunInstall p cs _ =
-              do m <- module_ref p >>= toModule -- Need to increment
-                                                -- ref, or segfault
+              do m <- module_ref p >>= toModule -- Need to increment ref, or
+                                                -- segfault
                  s <- peekCString cs
                  ri m s
                  return 0
 
--- | @'Exception'@ @'throw'@n by @'moduleProbeInsertModule'@ if the
--- module cannot be inserted due to a @'Blacklist'@ setting.
+-- | @'Exception'@ @'throw'@n by @'moduleProbeInsertModule'@ if the module
+-- cannot be inserted due to a @'Blacklist'@ setting.
 data BlacklistError = BlacklistError
                       deriving (Eq, Show, Typeable)
 
 instance Exception BlacklistError
 
--- | Insert a module in Linux kernel resolving dependencies, soft
--- dependencies, install commands and applying blacklist. If the
--- module cannot be inserted due to the @'Blacklist'@ filter, @'moduleProbeInsertModule'@ @'throw'@s a
+-- | Insert a module in Linux kernel resolving dependencies, soft dependencies,
+-- install commands and applying blacklist. If the module cannot be inserted due
+-- to the @'Blacklist'@ filter, @'moduleProbeInsertModule'@ @'throw'@s a
 -- @'BlacklistError'@ exception.
 moduleProbeInsertModule :: Module            -- ^ Module to be loaded
                         -> ProbeFlags        -- ^ Flags
-                        -> Blacklist         -- ^ How to handle
-                                             -- blacklisted modules
-                        -> Maybe Options     -- ^ Options to be passed
-                                             -- to the module
-                        -> Maybe RunInstall  -- ^ Function to execute
-                                             -- module's install
-                                             -- commands, if specified
-                                             -- in is configuration
-                                             -- (see
+                        -> Blacklist         -- ^ How to handle blacklisted
+                                             -- modules
+                        -> Maybe Options     -- ^ Options to be passed to the
+                                             -- module
+                        -> Maybe RunInstall  -- ^ Function to execute module's
+                                             -- install commands, if specified
+                                             -- in is configuration (see
                                              -- @'moduleGetInstallCommands'@).
-                                             -- If @'Nothing'@ then
-                                             -- use @system(3)@
-                        -> Maybe PrintAction -- ^ Function to print
-                                             -- the action being taken
-                                             -- on module loading
+                                             -- If @'Nothing'@ then use
+                                             -- @system(3)@
+                        -> Maybe PrintAction -- ^ Function to print the action
+                                             -- being taken on module loading
                         -> IO ()
 moduleProbeInsertModule m flags bl opts ri pa =
     withModule m $ \p ->
@@ -516,8 +512,8 @@ moduleProbeInsertModule m flags bl opts ri pa =
 -- | Function to print the actions being taken during the execution of
 -- @'moduleProbeInsertModule'@.
 type PrintAction = Module   -- ^ Module that is going to be loaded
-                 -> Bool    -- ^ True if the module has install
-                            -- commands specified in its configuration
+                 -> Bool    -- ^ True if the module has install commands
+                            -- specified in its configuration
                  -> Options -- ^ Options passed to the module
                  -> IO ()
 
@@ -534,8 +530,8 @@ withPrintAction (Just pa) f = bracket (mkCPrintActionPtr toCPrintAction)
                               freeHaskellFunPtr
                               f
     where toCPrintAction p b cs =
-              do m <- module_ref p >>= toModule -- Need to increment
-                                                -- ref, or segfault
+              do m <- module_ref p >>= toModule -- Need to increment ref, or
+                                                -- segfault
                  s <- peekCString cs
                  pa m (toBool b) s
 
@@ -569,12 +565,12 @@ withModuleAndWith f g m = withModule m f >>= g
 foreign import ccall "kmod_module_get_install_commands"
   module_get_install_commands :: Ptr Module -> IO CString
 
--- | Get install commands for this @'Module'@. Install commands come
--- from the configuration file and are cached in @'Module'@. The first
--- call to this function will search for this module in configuration
--- and subsequent calls return the cached string. The install commands
--- are returned as they were in the configuration, concatenated by
--- ';'. No other processing is made in this string.
+-- | Get install commands for this @'Module'@. Install commands come from the
+-- configuration file and are cached in @'Module'@. The first call to this
+-- function will search for this module in configuration and subsequent calls
+-- return the cached string. The install commands are returned as they were in
+-- the configuration, concatenated by ';'. No other processing is made in this
+-- string.
 moduleGetInstallCommands :: Module -> IO (Maybe String)
 moduleGetInstallCommands =
     withModuleAndWith module_get_install_commands (maybePeek peekCString)
@@ -582,12 +578,12 @@ moduleGetInstallCommands =
 foreign import ccall "kmod_module_get_remove_commands"
   module_get_remove_commands :: Ptr Module -> IO CString
 
--- | Get remove commands for this @'Module'@. Remove commands come
--- from the configuration file and are cached in @'Module'@. The first
--- call to this function will search for this module in configuration
--- and subsequent calls return the cached string. The remove commands
--- are returned as they were in the configuration, concatenated by
--- ';'. No other processing is made in this string.
+-- | Get remove commands for this @'Module'@. Remove commands come from the
+-- configuration file and are cached in @'Module'@. The first call to this
+-- function will search for this module in configuration and subsequent calls
+-- return the cached string. The remove commands are returned as they were in
+-- the configuration, concatenated by ';'. No other processing is made in this
+-- string.
 moduleGetRemoveCommands :: Module -> IO (Maybe String)
 moduleGetRemoveCommands =
     withModuleAndWith module_get_remove_commands (maybePeek peekCString)
@@ -595,19 +591,19 @@ moduleGetRemoveCommands =
 foreign import ccall "kmod_module_get_options"
   module_get_options :: Ptr Module -> IO CString
 
--- | Get options of this @'Module'@. Options come from the
--- configuration file and are cached in @'Module'@. The first call to
--- this function will search for this @'Module'@ in configuration and
--- subsequent calls return the cached string.
+-- | Get options of this @'Module'@. Options come from the configuration file
+-- and are cached in @'Module'@. The first call to this function will search for
+-- this @'Module'@ in configuration and subsequent calls return the cached
+-- string.
 moduleGetOptions :: Module -> IO (Maybe String)
 moduleGetOptions = withModuleAndWith module_get_options (maybePeek peekCString)
 
 foreign import ccall "kmod_module_get_path"
   module_get_path :: Ptr Module -> IO CString
 
--- | Get the path of this @'Module'@. If this @'Module'@ was not
--- created by path, it can search the modules.dep index in order to
--- find out the module under context's dirname.
+-- | Get the path of this @'Module'@. If this @'Module'@ was not created by
+-- path, it can search the modules.dep index in order to find out the module
+-- under context's dirname.
 moduleGetPath :: Module -> IO (Maybe String)
 moduleGetPath = withModuleAndWith module_get_path (maybePeek peekCString)
 
@@ -686,8 +682,8 @@ toModuleListWithFilter c f l =
 foreign import ccall "kmod_module_get_dependencies"
   module_get_dependencies :: Ptr Module -> IO (Ptr List)
 
--- | Search the modules.dep index to find the dependencies of the
--- given @'Module'@.
+-- | Search the modules.dep index to find the dependencies of the given
+-- @'Module'@.
 moduleGetDependencies :: Module -> IO [Module]
 moduleGetDependencies m =
     withModule m (module_get_dependencies >=> toModuleList)
@@ -829,8 +825,8 @@ moduleGetSections m =
                               else toSectionList s
                  )
 -}
--- | Get a list of sections of this @'Module'@, as returned by Linux
--- kernel (implemented natively in Haskell by reading @\/sys\/module\/@).
+-- | Get a list of sections of this @'Module'@, as returned by Linux kernel
+-- (implemented natively in Haskell by reading @\/sys\/module\/@).
 moduleGetSections :: Module -> IO [(Name,Address)]
 moduleGetSections m = do fs <- readDir secDir
                          mapM get (drop 2 fs)
@@ -919,9 +915,8 @@ foreign import ccall "kmod_module_get_info"
                   -> Ptr (Ptr List)
                   -> IO CInt
 
--- | Get the list of entries in ELF section \".modinfo\", these
--- contain alias, license, depends, vermagic and other keys with
--- respective values.
+-- | Get the list of entries in ELF section \".modinfo\", these contain alias,
+-- license, depends, vermagic and other keys with respective values.
 moduleGetInfo :: Module -> IO [(Key,Value)]
 moduleGetInfo =
     moduleGet module_get_info toInfoList "kmod_module_get_info"
@@ -970,8 +965,8 @@ moduleNewFromLoaded c =
 foreign import ccall "kmod_module_get_initstate"
   module_get_initstate :: Ptr Module -> IO CInt
 
--- | Get the @'Initstate'@ of the given @'Module'@, as returned by
--- Linux Kernel, by reading @\/sys@ filesystem.
+-- | Get the @'Initstate'@ of the given @'Module'@, as returned by Linux Kernel,
+-- by reading @\/sys@ filesystem.
 moduleGetInitstate :: Module -> IO Initstate
 moduleGetInitstate m =
     withModule m
@@ -989,15 +984,15 @@ moduleGetSize m = fromIntegral <$> withModule m module_get_size
 foreign import ccall "kmod_module_get_refcnt"
   module_get_refcnt :: Ptr Module -> IO CInt
 
--- | Get the ref count of the given @'Module'@, as returned by Linux
--- kernel, by reading @\/sys@ filesystem.
+-- | Get the ref count of the given @'Module'@, as returned by Linux kernel, by
+-- reading @\/sys@ filesystem.
 moduleGetRefcnt :: Module -> IO Int
 moduleGetRefcnt m = fromIntegral <$> withModule m module_get_refcnt
 
 foreign import ccall "kmod_module_get_holders"
   module_get_holders :: Ptr Module -> IO (Ptr List)
 
--- | Get the list of @'Module'@s that are holding the given
--- @'Module'@, as returned by Linux kernel.
+-- | Get the list of @'Module'@s that are holding the given @'Module'@, as
+-- returned by Linux kernel.
 moduleGetHolders :: Module -> IO [Module]
 moduleGetHolders m = withModule m (module_get_holders >=> toModuleList)
