@@ -1,6 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
 
 --------------------------------------------------------------------------------
 -- |

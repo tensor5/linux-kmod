@@ -1,6 +1,6 @@
 Name:           linux-kmod
 Version:        0.1.0.0
-Cabal-Version:  >= 1.8
+Cabal-Version:  >= 1.10
 Build-Type:     Simple
 License:        BSD3
 License-File:   LICENSE
@@ -28,6 +28,7 @@ Source-Repository this
   Tag:       v0.1.0.0
 
 Library
+  Default-Language:   Haskell2010
   Build-Depends:      base == 4.*,
                       directory
   Ghc-Options:        -Wall
