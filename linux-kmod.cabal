@@ -29,7 +29,7 @@ Source-Repository this
 
 Library
   Build-Depends:      base == 4.*,
-                      unix >= 2.6 && < 2.8
+                      directory
   Ghc-Options:        -Wall
   Exposed-modules:    System.Linux.KMod
   Pkgconfig-Depends:  libkmod

@@ -88,7 +88,7 @@ import Data.Functor ((<$>))
 import Data.Typeable
 import Foreign hiding (new)
 import Foreign.C
-import System.Posix.Directory (closeDirStream, openDirStream, readDirStream)
+import System.Directory (getDirectoryContents)
 import System.Posix.Types (Fd)
 
 #include <libkmod.h>
@@ -841,20 +841,11 @@ moduleGetSections m =
 -- | Get a list of sections of this @'Module'@, as returned by Linux kernel
 -- (implemented natively in Haskell by reading @\/sys\/module\/@).
 moduleGetSections :: Module -> IO [(Name,Address)]
-moduleGetSections m = do fs <- readDir secDir
+moduleGetSections m = do fs <- getDirectoryContents secDir
                          mapM get (drop 2 fs)
     where secDir = "/sys/module/" ++ show m ++ "/sections"
           get f = do addr <- readFile (secDir ++ '/':f)
                      return (f, read addr)
-
-
-readDir :: FilePath -> IO [FilePath]
-readDir path = bracket (openDirStream path) closeDirStream getDir
-    where getDir d = do f <- readDirStream d
-                        case f of
-                          [] -> return []
-                          _ -> do fs <- getDir d
-                                  return (f:fs)
 
 foreign import ccall "kmod_module_symbol_get_crc"
   module_symbol_get_crc :: Ptr List -> IO CRC
