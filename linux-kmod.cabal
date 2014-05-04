@@ -13,6 +13,10 @@ Stability:      experimental
 Synopsis:       Linux kernel modules support
 Description:    Manipulate Linux kernel modules through the @libkmod@ library.
 
+Extra-Source-Files:
+  CHANGELOG.md
+  README.md
+
 Library
   Build-Depends:      base == 4.*,
                       unix >= 2.6 && < 2.8
