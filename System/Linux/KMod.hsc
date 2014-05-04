@@ -2,8 +2,21 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
--- | High-level bindings to to the @libkmod@ library for manipulating Linux
--- kernel modules.
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  $Header$
+-- Copyright   :  © 2013-2014 Nicola Squartini
+-- License     :  BSD3
+--
+-- Maintainer  :  Nicola Squartini <tensor5@gmail.com>
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- High-level bindings to to the @libkmod@ library for manipulating Linux kernel
+-- modules.
+--
+--------------------------------------------------------------------------------
+
 module System.Linux.KMod
     (
     -- * Context
