@@ -802,42 +802,7 @@ type Name = String
 
 -- | Address of a module section.
 type Address = Word64
-{-
-foreign import ccall "kmod_module_section_get_address"
-        module_section_get_address :: Ptr List
-                                   -> IO Address
 
-foreign import ccall "kmod_module_section_get_name"
-        module_section_get_name :: Ptr List
-                                -> IO CString
-
-foreign import ccall "kmod_module_section_free_list"
-        module_section_free_list :: Ptr List
-                                 -> IO ()
-
-foreign import ccall "kmod_module_get_sections"
-  module_get_sections :: Ptr Module
-                      -> IO (Ptr List)
-
-module_section_get :: Ptr List -> IO (Name,Address)
-module_section_get p = do n <- module_section_get_name p >>= peekCString
-                          a <- module_section_get_address p
-                          return (n,a)
-
-toSectionList :: Ptr List -> IO [(Name,Address)]
-toSectionList = toList
-                module_section_get
-                module_section_free_list
-
-moduleGetSections :: Module -> IO [(Name,Address)]
-moduleGetSections m =
-    withModule m (\p -> do s <- module_get_sections p
-                           if s == nullPtr
-                              then fail ("kmod_module_get_sections returned " ++
-                                         show s)
-                              else toSectionList s
-                 )
--}
 -- | Get a list of sections of this @'Module'@, as returned by Linux kernel
 -- (implemented natively in Haskell by reading @\/sys\/module\/@).
 moduleGetSections :: Module -> IO [(Name,Address)]
