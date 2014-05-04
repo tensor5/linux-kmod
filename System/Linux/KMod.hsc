@@ -80,14 +80,14 @@ module System.Linux.KMod
     , moduleGetHolders
    ) where
 
-import Control.Exception (Exception, bracket, throw)
-import Control.Monad ((>=>), unless)
-import Data.Functor ((<$>))
-import Data.Typeable
-import Foreign hiding (new)
-import Foreign.C
-import System.Directory (getDirectoryContents)
-import System.Posix.Types (Fd)
+import           Control.Exception  (Exception, bracket, throw)
+import           Control.Monad      (unless, (>=>))
+import           Data.Functor       ((<$>))
+import           Data.Typeable
+import           Foreign            hiding (new)
+import           Foreign.C
+import           System.Directory   (getDirectoryContents)
+import           System.Posix.Types (Fd)
 
 #include <libkmod.h>
 
@@ -385,7 +385,7 @@ fromBitField [] _ = 0
 fromBitField (x:xs) a = (if fst x a then snd x else 0) .|. fromBitField xs a
 
 -- | Flags for @'moduleInsertModule'@.
-data InsertFlags = InsertFlags { insertForceVerMagic :: Bool
+data InsertFlags = InsertFlags { insertForceVerMagic   :: Bool
                                , insertForceModVersion :: Bool
                                } deriving (Eq, Show)
 
@@ -413,12 +413,12 @@ moduleInsertModule m i o =
 
 
 -- | Flags for @'moduleProbeInsertModule'@.
-data ProbeFlags = ProbeFlags { probeForceVerMagic :: Bool
+data ProbeFlags = ProbeFlags { probeForceVerMagic   :: Bool
                              , probeForceModVersion :: Bool
-                             , probeIgnoreCommand :: Bool
-                             , probeIgnoreLoaded :: Bool
-                             , probeDryRun :: Bool
-                             , probeFailOnLoaded :: Bool
+                             , probeIgnoreCommand   :: Bool
+                             , probeIgnoreLoaded    :: Bool
+                             , probeDryRun          :: Bool
+                             , probeFailOnLoaded    :: Bool
                              } deriving (Eq, Show)
 
 fromProbeFlags :: (Bits a, Num a) => ProbeFlags -> a
@@ -550,7 +550,7 @@ foreign import ccall "kmod_module_ref" module_ref :: Ptr Module
                                                   -> IO (Ptr Module)
 
 -- | Flags for @'moduleRemoveModule'@.
-data RemoveFlags = RemoveFlags { removeForce :: Bool
+data RemoveFlags = RemoveFlags { removeForce  :: Bool
                                , removeNowait :: Bool
                                } deriving (Eq, Show)
 
@@ -673,7 +673,7 @@ foreign import ccall "kmod_module_apply_filter"
 
 -- | Filter type for @'moduleNewFromLookupWithFilter'@.
 data Filter = Filter { filterBlacklist :: Bool
-                     , filterBuiltin :: Bool
+                     , filterBuiltin   :: Bool
                      } deriving (Eq, Show)
 
 fromFilter :: (Bits a, Num a) => Filter -> a
