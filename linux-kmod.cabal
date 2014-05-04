@@ -7,7 +7,7 @@ License-File:   LICENSE
 Copyright:      © 2013-2014 Nicola Squartini
 Author:         Nicola Squartini
 Maintainer:     Nicola Squartini <tensor5@gmail.com>
-Bug-Reports:    mailto:tensor5@gmail.com
+Bug-Reports:    https://github.com/tensor5/linux-kmod/issues
 Category:       System
 Stability:      experimental
 Synopsis:       Linux kernel modules support
