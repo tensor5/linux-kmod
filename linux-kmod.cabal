@@ -29,6 +29,7 @@ Source-Repository this
 
 Library
   Default-Language:   Haskell2010
+  Other-Extensions:   DeriveDataTypeable
   Build-Depends:      base == 4.*,
                       directory
   Ghc-Options:        -Wall
